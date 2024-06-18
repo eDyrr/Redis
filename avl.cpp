@@ -40,7 +40,8 @@ static AVLNode *rot_left(AVLNode *node) {
     }
     node->right = new_node->left ;
     new_node->left = node ;
-    new_node->parent = new_node ;
+    new_node->parent = node->parent ;
+    node->parent = new_node ;
     avl_update(node) ;
     avl_update(new_node) ;
     return new_node ;
