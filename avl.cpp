@@ -1,19 +1,6 @@
+#include "avl.h"
 #include <stddef.h>
 #include <stdint.h>
-
-struct AVLNode {
-    uint32_t depth = 0 ;
-    uint32_t cnt = 0 ;
-    AVLNode *left = NULL ;
-    AVLNode *right = NULL ;
-    AVLNode *parent = NULL ;
-};
-
-static void avl_init(AVLNode *node) {
-    node->depth = 1 ;
-    node->cnt = 1 ;
-    node->left = node->right = node->parent = NULL ;
-}
 
 static uint32_t avl_depth(AVLNode *node) {
     return node ? node->depth : 0 ;
@@ -142,4 +129,34 @@ static AVLNode *avl_del(AVLNode *node) {
             return victim ;
         }
     }
+}
+
+// offset into the succeeding or preceding noed.
+// note: the worst-case is O(log(n)) regardless of how long the offset is.
+AVLNode *avl_offset(AVLNode *node, int64_t offset) {
+    int64_t pos = 0 ; // relative to the starting node
+    while(offset != pos) {
+        if(pos < offset && pos + avl_cnt(node->right) >= offset) {
+            // the target is inside the right subtree
+            node = node->right ;
+            pos += avl_cnt(node->left) + 1 ;
+        } else if(pos > offset && pos - avl_cnt(node->left) <= offset) {
+            // the target is inside the left subtree
+            node = node->left ;
+            pos -= avl_cnt(node->right) + 1 ;
+        } else {
+            // go to the parent
+            AVLNode *parent = node->parent ;
+            if(!parent) {
+                return NULL ;
+            }
+            if(parent->right == node) {
+                pos -= avl_cnt(node->left) + 1 ;
+            } else {
+                pos += avl_cnt(node->right) + 1 ;
+            }
+            node = parent ;
+        }
+    }
+    return node ;
 }
