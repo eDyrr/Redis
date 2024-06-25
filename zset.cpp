@@ -14,7 +14,7 @@ static ZNode *znode_new(const char *name, size_t len, double score) {
     node->score = score ;
     node->len = len ;
     memcpy(&node->name[0], name, len) ;
-    return node ; 
+    return node ;
 }
 
 static uint32_t min(size_t lhs, size_t rhs) {
@@ -93,3 +93,73 @@ static bool hcmp(HNode *node, HNode *key,) {
     return 0 == memcmp(znode->name, hkey->name, znode->len) ;
 }
 
+// lookup by name
+ZNode *zset_lookup(ZSet *zset, const char *name, size_t len) {
+    if(!zset->tree) {
+        return NULL ;
+    }
+    HKey hkey ;
+    key.node.hcode = str_hash((uint8_t *)name, len) ;
+    key.name = name ;
+    key.len = len ;
+    HNode *found = hm_lookup(&zset->hmap, &key.node, &hcmp) ;
+    return found ? container_of(found, ZNode, hmap) : NULL ;
+}
+
+// deletion by name
+ZNode *zset_pop(ZSet *zset, const char *name, size_t len) {
+    if(!zset->tree) {
+        return NULL ;
+    }
+    HKey hkey ;
+    key.node.hcode = str_hash((uint8_t *)name, len) ;
+    key.name = name ;
+    key.len = len ;
+    HNnode *found = hm_pop(&zset->hmap, &key.node, &hcmp) ;
+    if(!found) {
+        return NULL ;
+    }
+    ZNode *znode = container_of(found, ZNode, hmap) ;
+    zset->tree = avl_del(&node->tree) ;
+    return node ;
+}
+
+// find the (score, name) tuple that is greater or equal to the argument.
+ZNode *zset_query(ZSet *zset, double score, const char *name, size_t len) {
+    AVLNode *found = NULL ;
+    AVLNode *cur = zset->tree ;
+    while(cur) {
+        if(zless(cur, score, name, len)) {
+            cur = cur->right ;
+        } else {
+            found = cur ; // candidate
+            cur = cur->left ;
+        }
+    }
+    return found ? container_of(found, ZNode, tree) : NULL ;
+}
+
+// offset into the succeeding or preceding node.
+ZNode *znode_offset(ZNode *node, int64_t offset) {
+    AVLNode *tnode = node ? avl_offset(&node->tree, offset) : NULL ;
+    return tnode ? container_of(tnode, ZNode, tree) : NULL ;
+}
+
+void znode_del(ZNode *node) {
+    free(node) ;
+}
+
+static void tree_dispose(AVLNode *node) {
+    if(!node) {
+        return ;
+    }
+    tree_dispose(node->left) ;
+    tree_dispose(node->right) ;
+    znode_del(container_of(node, ZNode, tree)) ;
+}
+
+// destroy the zset
+void zset_dispose(ZSet *zset) {
+    tree_dispose(zset->tree) ;
+    hm_destroy(&zset->hmap) ;
+}
